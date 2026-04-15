@@ -1,155 +1,100 @@
-# 流程圖文件（FLOWCHART）
+# 任務管理系統 (Task Management System) 流程圖文件
 
-**專案名稱：** 任務管理系統  
-**文件版本：** v1.0  
-**建立日期：** 2026-04-15  
-**參考文件：** PRD.md
+本文件包含使用者操作流程、系統資料流向，以及功能路由對照表。
 
 ---
 
-## 1. 使用者流程圖（User Flow）
+## 1. 使用者流程圖 (User Flow)
 
-描述使用者從進入網站到完成各項操作的完整路徑。
+描述使用者進入系統後的操作選擇與路徑。
 
 ```mermaid
 flowchart LR
-  A([使用者開啟網頁]) --> B[首頁 - 任務清單]
-
-  B --> C{要執行什麼操作？}
-
-  C -->|新增任務| D[輸入任務名稱]
-  D --> E[點擊新增按鈕]
-  E --> F{輸入是否有效？}
-  F -->|是| G[儲存至資料庫]
-  G --> B
-  F -->|否| H[顯示錯誤提示]
-  H --> D
-
-  C -->|標記完成| I[點擊完成按鈕]
-  I --> J[切換任務狀態為已完成]
-  J --> B
-
-  C -->|刪除任務| K[點擊刪除按鈕]
-  K --> L[從資料庫移除]
-  L --> B
-
-  C -->|篩選任務| M{選擇篩選條件}
-  M -->|全部| B
-  M -->|待辦中| N[顯示未完成任務]
-  M -->|已完成| O[顯示已完成任務]
-  N --> C
-  O --> C
+    Start([進入網站]) --> List[首頁: 任務列表]
+    
+    List --> Action{選擇操作}
+    
+    Action -->|新增任務| Add[填寫標題並提交]
+    Add --> List
+    
+    Action -->|標記完成/未完成| Toggle[點擊狀態核取方塊]
+    Toggle --> List
+    
+    Action -->|刪除任務| Delete[點擊刪除按鈕]
+    Delete --> Confirm{確認刪除?}
+    Confirm -->|是| List
+    Confirm -->|否| List
+    
+    Action -->|篩選任務| Filter[選擇狀態篩選器]
+    Filter --> List
 ```
 
 ---
 
-## 2. 系統序列圖（System Sequence Diagram）
+## 2. 系統序列圖 (Sequence Diagram)
 
-描述各主要功能中，使用者、瀏覽器、Flask 後端與 SQLite 資料庫之間的互動流程。
+以「新增任務」與「標記完成」為例，描述資料如何在各元件間流動。
 
-### 2.1 新增任務
-
+### 場景：新增任務
 ```mermaid
 sequenceDiagram
-  actor User as 使用者
-  participant Browser as 瀏覽器
-  participant Flask as Flask Route
-  participant DB as SQLite
+    actor User as 使用者
+    participant Browser as 瀏覽器 (HTML/JS)
+    participant Flask as Flask Route (Controller)
+    participant Model as Task Model
+    participant DB as SQLite Database
 
-  User->>Browser: 輸入任務名稱並點擊「新增」
-  Browser->>Flask: POST /tasks
-  Flask->>Flask: 驗證輸入（非空、長度限制）
-  alt 輸入有效
-    Flask->>DB: INSERT INTO tasks (title, created_at)
-    DB-->>Flask: 新增成功
-    Flask-->>Browser: 302 重導向 GET /
-    Browser->>Flask: GET /
-    Flask->>DB: SELECT * FROM tasks
-    DB-->>Flask: 回傳任務清單
-    Flask-->>Browser: 渲染首頁（任務清單更新）
-  else 輸入無效
-    Flask-->>Browser: 顯示錯誤訊息（原頁面）
-  end
+    User->>Browser: 輸入任務名稱並點擊「新增」
+    Browser->>Flask: POST /add (task_title)
+    Flask->>Model: 建立任務物件 (title, status=False)
+    Model->>DB: INSERT INTO tasks (title, status)
+    DB-->>Model: 回傳成功
+    Model-->>Flask: 完成資料處理
+    Flask-->>Browser: HTTP 302 重導向至 / (首頁)
+    Browser->>Flask: GET / (要求更新後的列表)
+    Flask->>Model: 獲取所有任務
+    Model->>DB: SELECT * FROM tasks
+    DB-->>Model: 回傳任務清單
+    Model-->>Flask: Data List
+    Flask-->>Browser: 渲染 index.html 回傳
 ```
 
-### 2.2 標記任務完成
-
+### 場景：標記任務完成
 ```mermaid
 sequenceDiagram
-  actor User as 使用者
-  participant Browser as 瀏覽器
-  participant Flask as Flask Route
-  participant DB as SQLite
+    actor User as 使用者
+    participant Browser as 瀏覽器 (HTML/JS)
+    participant Flask as Flask Route (Controller)
+    participant Model as Task Model
+    participant DB as SQLite Database
 
-  User->>Browser: 點擊任務的「完成」按鈕
-  Browser->>Flask: POST /tasks/<id>/complete
-  Flask->>DB: UPDATE tasks SET is_done=1, completed_at=NOW() WHERE id=<id>
-  DB-->>Flask: 更新成功
-  Flask-->>Browser: 302 重導向 GET /
-  Browser->>Flask: GET /
-  Flask->>DB: SELECT * FROM tasks
-  DB-->>Flask: 回傳任務清單
-  Flask-->>Browser: 渲染首頁（任務狀態更新）
-```
-
-### 2.3 刪除任務
-
-```mermaid
-sequenceDiagram
-  actor User as 使用者
-  participant Browser as 瀏覽器
-  participant Flask as Flask Route
-  participant DB as SQLite
-
-  User->>Browser: 點擊任務的「刪除」按鈕
-  Browser->>Flask: POST /tasks/<id>/delete
-  Flask->>DB: DELETE FROM tasks WHERE id=<id>
-  DB-->>Flask: 刪除成功
-  Flask-->>Browser: 302 重導向 GET /
-  Browser->>Flask: GET /
-  Flask->>DB: SELECT * FROM tasks
-  DB-->>Flask: 回傳任務清單
-  Flask-->>Browser: 渲染首頁（任務移除）
-```
-
-### 2.4 篩選任務
-
-```mermaid
-sequenceDiagram
-  actor User as 使用者
-  participant Browser as 瀏覽器
-  participant Flask as Flask Route
-  participant DB as SQLite
-
-  User->>Browser: 點擊篩選按鈕（全部 / 待辦中 / 已完成）
-  Browser->>Flask: GET /?filter=all | pending | completed
-  Flask->>DB: SELECT * FROM tasks WHERE ... (依篩選條件)
-  DB-->>Flask: 回傳符合條件的任務清單
-  Flask-->>Browser: 渲染首頁（顯示篩選結果）
+    User->>Browser: 點擊任務完成狀態
+    Browser->>Flask: POST /toggle/<task_id>
+    Flask->>Model: 更新任務狀態 (id, status=True)
+    Model->>DB: UPDATE tasks SET status = NOT status WHERE id = ?
+    DB-->>Model: 成功
+    Model-->>Flask: 完成更新
+    Flask-->>Browser: HTTP 302 重導向至 / (首頁)
 ```
 
 ---
 
-## 3. 功能清單對照表
+## 3. 功能清單與路由對照表
 
-| 功能編號 | 功能名稱 | URL 路徑 | HTTP 方法 | 說明 |
-|----------|----------|----------|-----------|------|
-| F-01 | 顯示任務清單 | `/` | GET | 首頁，顯示所有任務 |
-| F-02 | 依狀態篩選 | `/?filter=<all\|pending\|completed>` | GET | Query String 控制篩選條件 |
-| F-03 | 新增任務 | `/tasks` | POST | 接收表單資料，建立新任務 |
-| F-04 | 標記任務完成 | `/tasks/<id>/complete` | POST | 切換指定任務的完成狀態 |
-| F-05 | 刪除任務 | `/tasks/<id>/delete` | POST | 刪除指定任務 |
+本表格列出系統主要功能及其對應的後端進入點。
 
-> 💡 **設計說明：** 由於使用 HTML form，刪除與狀態切換統一使用 POST 方法，避免瀏覽器直接呼叫 GET 造成誤操作。
+| 功能名稱 | URL 路徑 | HTTP 方法 | 說明 |
+| :--- | :--- | :--- | :--- |
+| 顯示任務清單 | `/` | `GET` | 渲染首頁，顯示所有或篩選過的任務 |
+| 新增任務 | `/add` | `POST` | 接收表單標題並存入資料庫 |
+| 標記任務狀態 | `/toggle/<int:id>` | `POST/GET` | 切換任務的完成/未完成狀態 |
+| 刪除任務 | `/delete/<int:id>` | `POST` | 將指定 ID 的任務從資料庫移除 |
+| 篩選任務 | `/?filter=done` | `GET` | 透過 query string 進行狀態篩選 |
 
 ---
 
-## 4. 頁面狀態說明
+## 4. 流程設計說明
 
-| 頁面狀態 | 觸發條件 | 顯示內容 |
-|----------|----------|----------|
-| 預設（全部） | `GET /` 或 `GET /?filter=all` | 所有任務清單 |
-| 待辦中篩選 | `GET /?filter=pending` | `is_done = 0` 的任務 |
-| 已完成篩選 | `GET /?filter=completed` | `is_done = 1` 的任務 |
-| 新增成功 | POST /tasks 成功後 | 重導向首頁，任務清單更新 |
-| 輸入錯誤 | POST /tasks 驗證失敗 | 首頁顯示錯誤提示訊息 |
+1. **同步作業流程**: 由於採用 Flask + Jinja2 的架構，大部分操作 (新增、刪除、狀態切換) 都會觸發頁面刷新 (Redirect)，這確保了資料狀態與 UI 的高度一致性。
+2. **防呆機制**: 在「新增任務」流程中，必須檢核標題是否為空；在「刪除任務」流程中，建議加入 JavaScript 確認視窗，防止誤刪。
+3. **URL 設計**: 遵循 RESTful 風格建議，使用動態 URL 參數 (`<id>`) 來識別特定任務資源。
