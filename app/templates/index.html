@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="card shadow-sm mb-4">
+    <div class="card-body">
+        <h5 class="card-title mb-3">新增任務</h5>
+        <form action="{{ url_for('tasks.add_task') }}" method="POST" class="row g-2">
+            <div class="col-sm-10">
+                <input type="text" name="title" class="form-control" placeholder="輸入任務標題..." required>
+            </div>
+            <div class="col-sm-2">
+                <button type="submit" class="btn btn-primary w-100">新增</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div class="d-flex justify-content-between align-items-center mb-3">
+    <h4 class="mb-0">我的任務清單</h4>
+    <div class="btn-group" role="group">
+        <a href="{{ url_for('tasks.index') }}" class="btn btn-outline-secondary btn-sm {% if not current_filter %}active{% endif %}">全部</a>
+        <a href="{{ url_for('tasks.index', filter='todo') }}" class="btn btn-outline-secondary btn-sm {% if current_filter == 'todo' %}active{% endif %}">待辦</a>
+        <a href="{{ url_for('tasks.index', filter='done') }}" class="btn btn-outline-secondary btn-sm {% if current_filter == 'done' %}active{% endif %}">已完成</a>
+    </div>
+</div>
+
+<div class="list-group shadow-sm">
+    {% if tasks %}
+        {% for task in tasks %}
+            <div class="list-group-item d-flex justify-content-between align-items-center">
+                <div class="d-flex align-items-center">
+                    <form action="{{ url_for('tasks.toggle_task', id=task.id) }}" method="POST" class="me-3">
+                        <button type="submit" class="btn btn-link p-0 text-decoration-none">
+                            {% if task.status %}
+                                <span class="fs-4 text-success">✅</span>
+                            {% else %}
+                                <span class="fs-4 text-secondary">⬜</span>
+                            {% endif %}
+                        </button>
+                    </form>
+                    <span class="{% if task.status %}task-done{% endif %} fs-5">
+                        {{ task.title }}
+                    </span>
+                </div>
+                
+                <form action="{{ url_for('tasks.delete_task', id=task.id) }}" method="POST" onsubmit="return confirm('確定要刪除此任務嗎？');">
+                    <button type="submit" class="btn btn-outline-danger btn-sm">刪除</button>
+                </form>
+            </div>
+        {% endfor %}
+    {% else %}
+        <div class="list-group-item text-center py-4 text-muted">
+            目前沒有任務，快來新增一個吧！
+        </div>
+    {% endif %}
+</div>
+{% endblock %}
